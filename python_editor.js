@@ -67,7 +67,7 @@
         </style>
         <div id="container">
             <div id="status">Python Motoru Başlatılıyor...</div>
-            <textarea id="code-area" placeholder="# Python kodunuzu buraya yazın...\\n# Örn: print('Gelen Veri:', sac_data)"></textarea>
+            <textarea id="code-area" placeholder="# Python kodunuzu buraya yazın...\\n# Örn: print(sac_data)"></textarea>
             <button id="btn-run" disabled>Kodu Çalıştır</button>
             <div id="output">Konsol çıktısı burada görünecek...</div>
         </div>
@@ -97,21 +97,12 @@
                     await this.loadScript("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
                 }
                 
-                // Gerçek ve minimalist bir Base64 ZIP verisi (Ağ isteğini tamamen kesmek için)
-                const base64Zip = "UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==";
-                const binaryString = atob(base64Zip);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                const fakeZipBlob = new Blob([bytes], { type: 'application/zip' });
-                const fakeZipURL = URL.createObjectURL(fakeZipBlob);
-
-                // Pyodide ayağa kalkarken internete çıkmasın diye yerel sanal URL'imizi veriyoruz
+                // KISITLAMAYI AŞAN ANAHTAR HAMLE:
+                // Pyodide'ın dışarıya .zip isteği atmasını engellemek için stdLibURL'yi null yapıyoruz
+                // ve lockfile'ı kapatıyoruz. Böylece çekirdek Python ayağa kalkıyor.
                 this.pyodide = await window.loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
-                    stdLibURL: fakeZipURL, 
+                    stdLibURL: null, 
                     lockfile: null
                 });
 
@@ -120,10 +111,10 @@
                 this.$status.style.color = "#2e7d32";
                 this.$btnRun.disabled = false;
                 
-                this.$codeArea.value = `# SAC Veri Analizi\\nimport json\\n\\ntry:\\n    data = json.loads(sac_data)\\n    print(f"Başarıyla {len(data)} satır veri alındı!")\\n    print("İlk 2 Satır:", data[:2])\\nexcept Exception as e:\\n    print("Hata:", e)`;
+                this.$codeArea.value = `# SAC Veri Analizi (Saf Python Mantığı)\\n# Not: Şirket ağı kısıtlaması nedeniyle 'json' kütüphanesi yerine ham string metni işleyebilirsiniz.\\n\\nprint("Gelen Ham SAC Verisi:", sac_data)\\nprint("Metin Uzunluğu:", len(sac_data))`;
 
             } catch (error) {
-                this.$status.innerText = "Başlatma Hatası: Şirket ağı kısıtlaması.";
+                this.$status.innerText = "Başlatma Hatası: Güvenlik duvarı engeli.";
                 this.$status.style.backgroundColor = "#ffebee";
                 this.$status.style.color = "#c62828";
                 this.$output.innerText = "Detaylı Hata: " + error.message;
@@ -140,9 +131,32 @@
             });
         }
 
+        // SAC veri güncellemelerini hem Before hem After fonksiyonlarında güvenli şekilde yakalayalım
         onCustomWidgetBeforeUpdate(changedProperties) {
-            if ("myData" in changedProperties) {
-                this._sacData = changedProperties["myData"] || "[]";
+            this.updateSacData(changedProperties);
+        }
+
+        onCustomWidgetAfterUpdate(changedProperties) {
+            this.updateSacData(changedProperties);
+        }
+
+        updateSacData(properties) {
+            if (!properties) return;
+            
+            // Eğer myData adında bir property veya dataBinding objesi geliyorsa string'e çevirip saklayalım
+            if ("myData" in properties) {
+                const rawData = properties["myData"];
+                this._sacData = typeof rawData === "object" ? JSON.stringify(rawData) : (rawData || "[]");
+            } else if ("dataBinding" in properties) {
+                // dataBinding.getData hatasını engellemek için güvenli sarmalama
+                const db = properties["dataBinding"];
+                if (db && typeof db.getData === "function") {
+                    try {
+                        this._sacData = JSON.stringify(db.getData());
+                    } catch(e) {
+                        console.warn("Veri stringify edilemedi.", e);
+                    }
+                }
             }
         }
 
@@ -151,13 +165,19 @@
             this.$output.innerText = "Kod yürütülüyor...";
             
             try {
+                // SAC verisini Python içerisine global değişken olarak enjekte ediyoruz
                 this.pyodide.globals.set("sac_data", this._sacData);
                 
+                // Çıktıları yakalamak için io kütüphanesini (eğer yüklenebildiyse) simüle et veya direkt çalıştır
                 this.pyodide.runPython(`
                     import sys
-                    import io
-                    sys.stdout = io.StringIO()
-                    sys.stderr = io.StringIO()
+                    class SimpleStdout:
+                        def __init__(self): self.buf = ""
+                        def write(self, s): self.buf += s
+                        def flush(self): pass
+                        def getvalue(self): return self.buf
+                    sys.stdout = SimpleStdout()
+                    sys.stderr = SimpleStdout()
                 `);
 
                 await this.pyodide.runPythonAsync(this.$codeArea.value);
