@@ -20,12 +20,14 @@
       <div class="box">
         <h3>1. Python Kod Editörü</h3>
         <textarea id="code"># 'sac_data' değişkeni SAC tablonuzu içerir (Liste biçiminde).
-# Örnek işlem:
 result = []
-for row in sac_data:
-    new_row = dict(row)
-    new_row["ISLENDI_MI"] = "Evet"
-    result.append(new_row)
+if 'sac_data' in globals() and sac_data:
+    for row in sac_data:
+        new_row = dict(row)
+        new_row["ISLENDI_MI"] = "Evet"
+        result.append(new_row)
+else:
+    result = [{"bilgi": "SAC verisi henüz baglanmadi veya bos."}]
         </textarea>
         <button id="runBtn" disabled>▶ Kodu Çalıştır</button>
       </div>
@@ -41,10 +43,8 @@ for row in sac_data:
       super();
       this.attachShadow({ mode: "open" });
       this.shadowRoot.appendChild(template.content.cloneNode(true));
-      
       this._sacData = [];
       this.pyodide = null;
-
       this.shadowRoot.getElementById("runBtn").addEventListener("click", () => this.runPython());
       this.initPython();
     }
@@ -53,32 +53,30 @@ for row in sac_data:
       const statusEl = this.shadowRoot.getElementById("status");
       try {
         const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.mjs");
-        
         this.pyodide = await loadPyodide({
           indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
           fullStdLib: false
         });
-        
         statusEl.innerText = "✅ Python (Pyodide WASM) Başarıyla Yüklendi! Hazır.";
         statusEl.className = "status status-ready";
         this.shadowRoot.getElementById("runBtn").removeAttribute("disabled");
       } catch (e) {
         statusEl.innerText = "❌ Python yüklenirken hata oluştu: " + e.message;
-        console.error("Pyodide Yükleme Hatası:", e);
       }
     }
 
     onCustomWidgetAfterUpdate(changedProperties) {
       if (this.dataBindings) {
-        const dataBinding = this.dataBindings.getDataBinding("dataModel");
-        // HATA ÖNLEME: dataBinding objesi var mı ve içi dolu mu kontrolü eklendi
-        if (dataBinding && typeof dataBinding.getData === 'function') {
-          try {
-            let rawData = [];
+        try {
+          const dataBinding = this.dataBindings.getDataBinding("dataModel");
+          if (dataBinding) {
+            let rawData = null;
             if (typeof dataBinding.getFlattenedData === 'function') {
               rawData = dataBinding.getFlattenedData();
-            } else {
+            } else if (typeof dataBinding.getData === 'function') {
               rawData = dataBinding.getData();
+            } else if (dataBinding.data) {
+              rawData = dataBinding.data;
             }
 
             if (rawData && Array.isArray(rawData)) {
@@ -96,16 +94,15 @@ for row in sac_data:
                 return parsedRow;
               });
             }
-          } catch (err) {
-            console.log("Veri henüz hazır değil, bekleniyor...");
           }
+        } catch (err) {
+          console.log("Veri baglantisi kontrol ediliyor...");
         }
       }
     }
 
     async runPython() {
       if (!this.pyodide) return;
-
       const code = this.shadowRoot.getElementById("code").value;
       const outputBox = this.shadowRoot.getElementById("output");
       outputBox.innerText = "Hesaplanıyor...";
@@ -113,19 +110,16 @@ for row in sac_data:
       try {
         this.pyodide.globals.set("sac_data", this.pyodide.toPy(JSON.parse(JSON.stringify(this._sacData))));
         await this.pyodide.runPythonAsync(code);
-        
         if (this.pyodide.globals.has("result")) {
           let pyResult = this.pyodide.globals.get("result");
-          let jsResult = pyResult.toJs();
-          outputBox.innerText = JSON.stringify(jsResult, null, 2);
+          outputBox.innerText = JSON.stringify(pyResult.toJs(), null, 2);
         } else {
-          outputBox.innerText = "Uyarı: Kodunuz çalıştı ancak 'result' isminde bir değişken tanımlamadınız!";
+          outputBox.innerText = "Uyarı: 'result' degiskeni bulunamadi.";
         }
       } catch (err) {
         outputBox.innerText = `Python Hatası:\n${err.message}`;
       }
     }
   }
-
   customElements.define("sac-python-editor", SACPythonEditor);
 })();
