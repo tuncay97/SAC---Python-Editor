@@ -4,14 +4,14 @@
   "name": "Python Veri Editörü",
   "description": "SAC verilerini Python (Pyodide) ile işleyen editör",
   "newInstancePrefix": "PythonEditor",
-  "vendor": "CustomWidget",
+  "vendor": "Tuncay Güngör",
   "eula": "",
   "license": "",
   "webcomponents": [
     {
       "kind": "main",
       "tag": "sac-python-editor",
-      "url": "https://YOUR_GITHUB_USERNAME.github.io/sac-python-widget/python_editor.js"
+      "url": "https://github.com/tuncay97/SAC---Python-Editor/blob/main/python_editor.js"
     }
   ],
   "properties": {
