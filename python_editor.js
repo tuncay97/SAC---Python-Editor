@@ -19,7 +19,7 @@
     <div class="container">
       <div class="box">
         <h3>1. Python Kod Editörü</h3>
-        <textarea id="code"># 'sac_data' değişkeni SAC tablonuzu içerir (Liste biçiminde).
+        <textarea id="code"># 'sac_data' degiskeni SAC tablonuzu icerir.
 result = []
 if 'sac_data' in globals() and sac_data:
     for row in sac_data:
@@ -52,16 +52,22 @@ else:
     async initPython() {
       const statusEl = this.shadowRoot.getElementById("status");
       try {
+        // CORS riskini tamamen bitirmek icin dogrudan pyodide.mjs modulünü import ediyoruz
         const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.mjs");
+        
+        // KRITIK AYARLAR: fullStdLib'i kapatiyoruz ve standart kütüphane aramamasini emrediyoruz
         this.pyodide = await loadPyodide({
           indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
-          fullStdLib: false
+          fullStdLib: false,
+          stdLibList: []
         });
+        
         statusEl.innerText = "✅ Python (Pyodide WASM) Başarıyla Yüklendi! Hazır.";
         statusEl.className = "status status-ready";
         this.shadowRoot.getElementById("runBtn").removeAttribute("disabled");
       } catch (e) {
         statusEl.innerText = "❌ Python yüklenirken hata oluştu: " + e.message;
+        console.error("Pyodide Yükleme Hatası:", e);
       }
     }
 
@@ -96,7 +102,7 @@ else:
             }
           }
         } catch (err) {
-          console.log("Veri baglantisi kontrol ediliyor...");
+          console.log("Veri yapisi okunuyor...");
         }
       }
     }
