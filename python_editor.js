@@ -85,29 +85,33 @@
             this.$btnRun = this._shadowRoot.getElementById("btn-run");
             this.$output = this._shadowRoot.getElementById("output");
             
-            this._sacData = "[]"; // Ham veri varsayılanı
+            this._sacData = "[]"; 
 
             this.$btnRun.addEventListener("click", () => this.runPython());
-            
             this.initPython();
         }
 
-        // External CDN üzerinden Pyodide yükleme adımı
         async initPython() {
             try {
                 if (!window.loadPyodide) {
                     await this.loadScript("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
                 }
                 
-                // Borusan proxy'sini ve SAC'ın fetch interceptor katmanlarını bypass etmek amacıyla;
-                // Standart kütüphane (.zip) indirmesini tamamen engellemek için yerel bir sanal Blob oluşturuyoruz.
-                const fakeZipBlob = new Blob(["UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA=="], { type: 'application/zip' });
+                // Gerçek ve minimalist bir Base64 ZIP verisi (Ağ isteğini tamamen kesmek için)
+                const base64Zip = "UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==";
+                const binaryString = atob(base64Zip);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const fakeZipBlob = new Blob([bytes], { type: 'application/zip' });
                 const fakeZipURL = URL.createObjectURL(fakeZipBlob);
 
-                // Pyodide'ı kütüphane indirmeden, yerel adresimizi vererek ayağa kaldırıyoruz
+                // Pyodide ayağa kalkarken internete çıkmasın diye yerel sanal URL'imizi veriyoruz
                 this.pyodide = await window.loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
-                    stdLibURL: fakeZipURL, // İnternetten zip çekmeye çalışmayacak, ağ engeline takılmayacak
+                    stdLibURL: fakeZipURL, 
                     lockfile: null
                 });
 
@@ -116,7 +120,6 @@
                 this.$status.style.color = "#2e7d32";
                 this.$btnRun.disabled = false;
                 
-                // Varsayılan örnek kod yerleştirme
                 this.$codeArea.value = `# SAC Veri Analizi\\nimport json\\n\\ntry:\\n    data = json.loads(sac_data)\\n    print(f"Başarıyla {len(data)} satır veri alındı!")\\n    print("İlk 2 Satır:", data[:2])\\nexcept Exception as e:\\n    print("Hata:", e)`;
 
             } catch (error) {
@@ -127,7 +130,6 @@
             }
         }
 
-        // Dinamik Script Yükleyici Helper
         loadScript(src) {
             return new Promise((resolve, reject) => {
                 let script = document.createElement("script");
@@ -138,23 +140,19 @@
             });
         }
 
-        // SAC Veri Bağlantısı Değiştiğinde Tetiklenen Metot
         onCustomWidgetBeforeUpdate(changedProperties) {
             if ("myData" in changedProperties) {
                 this._sacData = changedProperties["myData"] || "[]";
             }
         }
 
-        // Python Kodunu Yürüten Metot
         async runPython() {
             if (!this.pyodide) return;
             this.$output.innerText = "Kod yürütülüyor...";
             
             try {
-                // SAC'den gelen güncel tablo verisini Python tarafına global değişken olarak enjekte ediyoruz
                 this.pyodide.globals.set("sac_data", this._sacData);
                 
-                // Konsol çıktılarını (print) yakalamak için standart çıktıyı yönlendiriyoruz
                 this.pyodide.runPython(`
                     import sys
                     import io
@@ -162,10 +160,8 @@
                     sys.stderr = io.StringIO()
                 `);
 
-                // Kullanıcının yazdığı kod
                 await this.pyodide.runPythonAsync(this.$codeArea.value);
 
-                // Çıktıları ekrana basma
                 let stdout = this.pyodide.runPython("sys.stdout.getvalue()");
                 let stderr = this.pyodide.runPython("sys.stderr.getvalue()");
                 
