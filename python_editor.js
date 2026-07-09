@@ -15,17 +15,12 @@
       .status { font-size: 12px; color: #666; margin-bottom: 10px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
       .status-ready { color: #2e7d32; }
     </style>
-    <div class="status" id="status">⏳ Pyodide (Python WASM Runtime) yükleniyor, lütfen bekleyin...</div>
+    <div class="status" id="status">⏳ Python Runtime (Pyodide) hazırlanıyor...</div>
     <div class="container">
       <div class="box">
         <h3>1. Python Kod Editörü</h3>
         <textarea id="code"># 'sac_data' değişkeni SAC tablonuzu içerir (Liste biçiminde).
-# Örnek işlem: Veriyi konsola yazdır ve yeni bir sütun ekle
-
-import js
-js.console.log("SAC Verisi Alındı. Satır sayısı: " + str(len(sac_data)))
-
-# Çıktı için 'result' değişkenini doldurmanız gerekir:
+# Örnek işlem:
 result = []
 for row in sac_data:
     new_row = dict(row)
@@ -55,50 +50,54 @@ for row in sac_data:
     }
 
     async initPython() {
+      const statusEl = this.shadowRoot.getElementById("status");
       try {
-        if (!window.loadPyodide) {
-          await this.loadScript("https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js");
-        }
-        this.pyodide = await loadPyodide();
+        const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.mjs");
         
-        const statusEl = this.shadowRoot.getElementById("status");
+        // fullStdLib: false diyerek CORS hatası veren büyük zip dosyasının indirilmesini engelliyoruz
+        this.pyodide = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
+          fullStdLib: false
+        });
+        
         statusEl.innerText = "✅ Python (Pyodide WASM) Başarıyla Yüklendi! Hazır.";
         statusEl.className = "status status-ready";
         this.shadowRoot.getElementById("runBtn").removeAttribute("disabled");
       } catch (e) {
-        this.shadowRoot.getElementById("status").innerText = "❌ Python yüklenirken hata oluştu!";
-        console.error(e);
+        statusEl.innerText = "❌ Python yüklenirken hata oluştu: " + e.message;
+        console.error("Pyodide Yükleme Hatası:", e);
       }
-    }
-
-    loadScript(src) {
-      return new Promise((resolve, reject) => {
-        let script = document.createElement("script");
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
     }
 
     onCustomWidgetAfterUpdate(changedProperties) {
       if (this.dataBindings) {
         const dataBinding = this.dataBindings.getDataBinding("dataModel");
-        if (dataBinding && dataBinding.getData()) {
-          const rawData = dataBinding.getData();
-          this._sacData = rawData.map(row => {
-            let parsedRow = {};
-            Object.keys(row).forEach(key => {
-              if (row[key] && row[key].id !== undefined) {
-                parsedRow[key] = row[key].id;
-              } else if (row[key] && row[key].raw !== undefined) {
-                parsedRow[key] = row[key].raw;
-              } else {
-                parsedRow[key] = row[key];
-              }
+        if (dataBinding) {
+          // dataBinding.getData() metodunun patlamasını önlemek için güvenli veri çekme alternatifi
+          let rawData = [];
+          if (typeof dataBinding.getFlattenedData === 'function') {
+            rawData = dataBinding.getFlattenedData();
+          } else if (typeof dataBinding.getData === 'function') {
+            rawData = dataBinding.getData();
+          } else if (dataBinding.data) {
+            rawData = dataBinding.data;
+          }
+
+          if (rawData && Array.isArray(rawData)) {
+            this._sacData = rawData.map(row => {
+              let parsedRow = {};
+              Object.keys(row).forEach(key => {
+                if (row[key] && row[key].id !== undefined) {
+                  parsedRow[key] = row[key].id;
+                } else if (row[key] && row[key].raw !== undefined) {
+                  parsedRow[key] = row[key].raw;
+                } else {
+                  parsedRow[key] = row[key];
+                }
+              });
+              return parsedRow;
             });
-            return parsedRow;
-          });
+          }
         }
       }
     }
@@ -111,9 +110,7 @@ for row in sac_data:
       outputBox.innerText = "Hesaplanıyor...";
 
       try {
-        // SAC verisini Python tarafına güvenli kopyala
         this.pyodide.globals.set("sac_data", this.pyodide.toPy(JSON.parse(JSON.stringify(this._sacData))));
-        
         await this.pyodide.runPythonAsync(code);
         
         if (this.pyodide.globals.has("result")) {
@@ -121,7 +118,7 @@ for row in sac_data:
           let jsResult = pyResult.toJs();
           outputBox.innerText = JSON.stringify(jsResult, null, 2);
         } else {
-          outputBox.innerText = "Uyarı: Kodunuz çalıştı ancak 'result' isminde bir değişken tanımlamadınız!\nÖrnek: result = sac_data";
+          outputBox.innerText = "Uyarı: Kodunuz çalıştı ancak 'result' isminde bir değişken tanımlamadınız!";
         }
       } catch (err) {
         outputBox.innerText = `Python Hatası:\n${err.message}`;
