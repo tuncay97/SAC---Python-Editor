@@ -1,0 +1,40 @@
+{
+  "id": "com.sapanalytics.custom.pythoneditor",
+  "version": "1.0.0",
+  "name": "Python Veri Editörü",
+  "description": "SAC verilerini Python (Pyodide) ile işleyen editör",
+  "newInstancePrefix": "PythonEditor",
+  "vendor": "CustomWidget",
+  "eula": "",
+  "license": "",
+  "webcomponents": [
+    {
+      "kind": "main",
+      "tag": "sac-python-editor",
+      "url": "https://YOUR_GITHUB_USERNAME.github.io/sac-python-widget/python_editor.js"
+    }
+  ],
+  "properties": {
+    "myData": {
+      "type": "string",
+      "description": "SAC'den gelen ham tablo verisi"
+    }
+  },
+  "dataBindings": {
+    "dataModel": {
+      "feeds": [
+        {
+          "id": "dimensions",
+          "description": "Boyutlar (Dimensions)",
+          "type": "dimension"
+        },
+        {
+          "id": "measures",
+          "description": "Ölçüler (Measures)",
+          "type": "measure"
+        }
+      ]
+    }
+  },
+  "methods": {}
+}
