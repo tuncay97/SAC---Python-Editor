@@ -54,7 +54,6 @@ for row in sac_data:
       try {
         const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.mjs");
         
-        // fullStdLib: false diyerek CORS hatası veren büyük zip dosyasının indirilmesini engelliyoruz
         this.pyodide = await loadPyodide({
           indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
           fullStdLib: false
@@ -72,31 +71,33 @@ for row in sac_data:
     onCustomWidgetAfterUpdate(changedProperties) {
       if (this.dataBindings) {
         const dataBinding = this.dataBindings.getDataBinding("dataModel");
-        if (dataBinding) {
-          // dataBinding.getData() metodunun patlamasını önlemek için güvenli veri çekme alternatifi
-          let rawData = [];
-          if (typeof dataBinding.getFlattenedData === 'function') {
-            rawData = dataBinding.getFlattenedData();
-          } else if (typeof dataBinding.getData === 'function') {
-            rawData = dataBinding.getData();
-          } else if (dataBinding.data) {
-            rawData = dataBinding.data;
-          }
+        // HATA ÖNLEME: dataBinding objesi var mı ve içi dolu mu kontrolü eklendi
+        if (dataBinding && typeof dataBinding.getData === 'function') {
+          try {
+            let rawData = [];
+            if (typeof dataBinding.getFlattenedData === 'function') {
+              rawData = dataBinding.getFlattenedData();
+            } else {
+              rawData = dataBinding.getData();
+            }
 
-          if (rawData && Array.isArray(rawData)) {
-            this._sacData = rawData.map(row => {
-              let parsedRow = {};
-              Object.keys(row).forEach(key => {
-                if (row[key] && row[key].id !== undefined) {
-                  parsedRow[key] = row[key].id;
-                } else if (row[key] && row[key].raw !== undefined) {
-                  parsedRow[key] = row[key].raw;
-                } else {
-                  parsedRow[key] = row[key];
-                }
+            if (rawData && Array.isArray(rawData)) {
+              this._sacData = rawData.map(row => {
+                let parsedRow = {};
+                Object.keys(row).forEach(key => {
+                  if (row[key] && row[key].id !== undefined) {
+                    parsedRow[key] = row[key].id;
+                  } else if (row[key] && row[key].raw !== undefined) {
+                    parsedRow[key] = row[key].raw;
+                  } else {
+                    parsedRow[key] = row[key];
+                  }
+                });
+                return parsedRow;
               });
-              return parsedRow;
-            });
+            }
+          } catch (err) {
+            console.log("Veri henüz hazır değil, bekleniyor...");
           }
         }
       }
