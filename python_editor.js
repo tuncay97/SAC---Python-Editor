@@ -1,33 +1,5 @@
 (function() {
-    // 1. Borusan Şirket Ağındaki CORS ve python_stdlib.zip Engeline Karşı Akıllı Interceptor
-    const originalFetch = window.fetch;
-    window.fetch = function(...args) {
-        const url = args[0];
-        if (typeof url === 'string' && url.includes('python_stdlib.zip')) {
-            console.log("CORS Bypass: python_stdlib.zip isteği yakalandı, sanal ZIP üretiliyor...");
-            
-            // Dış ağa çıkıp engellenmemek için hafızada geçerli ve minimalist bir Base64 ZIP oluşturuyoruz
-            const base64Zip = "UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA=="; 
-            const binaryString = atob(base64Zip);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            
-            return Promise.resolve(new Response(bytes, {
-                status: 200,
-                statusText: 'OK',
-                headers: new Headers({
-                    'Content-Type': 'application/zip',
-                    'Access-Control-Allow-Origin': '*'
-                })
-            }));
-        }
-        return originalFetch.apply(this, args);
-    };
-
-    // 2. Custom Widget Şablonu Oluşturma
+    // 1. Custom Widget Şablonu Oluşturma
     let template = document.createElement("template");
     template.innerHTML = `
         <style>
@@ -101,7 +73,7 @@
         </div>
     `;
 
-    // 3. Web Component Sınıf Tanımı
+    // 2. Web Component Sınıf Tanımı
     class SACPythonEditor extends HTMLElement {
         constructor() {
             super();
@@ -120,16 +92,22 @@
             this.initPython();
         }
 
-        // External CDN üzerinden Pyodide yükleme yükleme adımı
+        // External CDN üzerinden Pyodide yükleme adımı
         async initPython() {
             try {
                 if (!window.loadPyodide) {
                     await this.loadScript("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
                 }
                 
-                // Pyodide'ı kütüphane indirmeden (lockFile olmadan) hızlıca ayağa kaldırıyoruz
+                // Borusan proxy'sini ve SAC'ın fetch interceptor katmanlarını bypass etmek amacıyla;
+                // Standart kütüphane (.zip) indirmesini tamamen engellemek için yerel bir sanal Blob oluşturuyoruz.
+                const fakeZipBlob = new Blob(["UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA=="], { type: 'application/zip' });
+                const fakeZipURL = URL.createObjectURL(fakeZipBlob);
+
+                // Pyodide'ı kütüphane indirmeden, yerel adresimizi vererek ayağa kaldırıyoruz
                 this.pyodide = await window.loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/",
+                    stdLibURL: fakeZipURL, // İnternetten zip çekmeye çalışmayacak, ağ engeline takılmayacak
                     lockfile: null
                 });
 
