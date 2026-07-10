@@ -7,10 +7,10 @@
     template.innerHTML = `
         <style>
             :host { display: block; width: 100%; height: 100%; font-family: sans-serif; }
-            #container { padding: 15px; background: #ffffff; border: 1px solid #ccc; height: 100%; }
+            #container { padding: 15px; background: #ffffff; border: 1px solid #ccc; height: 100%; display: flex; flex-direction: column; }
             textarea { width: 100%; height: 120px; margin: 10px 0; border: 1px solid #aaa; }
             #btn-run { background: #2b78e4; color: white; padding: 8px; border: none; cursor: pointer; }
-            #output { margin-top: 10px; background: #000; color: #0f0; padding: 10px; min-height: 50px; }
+            #output { margin-top: 10px; background: #000; color: #0f0; padding: 10px; flex-grow: 1; overflow-y: auto; white-space: pre-wrap; }
         </style>
         <div id="container">
             <div id="status">🐍 Python Yükleniyor...</div>
@@ -32,18 +32,19 @@
                 if (typeof loadPyodide !== 'undefined') {
                     clearInterval(check);
                     try {
-                        // DEĞİŞİKLİK BURADA: indexURL kullanmak yerine dosyaları
-                        // CDN üzerinden doğrudan hedefliyoruz ve stdlib yüklemesini 
-                        // SAC'ın kısıtlamasından kaçırmak için yapılandırıyoruz.
-                        this.pyodide = await loadPyodide({
-                            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
-                        });
+                        this.pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
+                        
+                        // Çıktıları yakalamak için stdout'u yeniden yönlendiriyoruz
+                        await this.pyodide.runPythonAsync(`
+                            import sys
+                            import io
+                            sys.stdout = io.StringIO()
+                        `);
                         
                         this.shadowRoot.getElementById("status").innerText = "✅ Python Hazır!";
                         this.shadowRoot.getElementById("btn-run").disabled = false;
                     } catch (e) {
-                        // Eğer hata hala devam ederse hatayı daha detaylı yazdır
-                        this.shadowRoot.getElementById("status").innerText = "Hata: " + e.message;
+                        this.shadowRoot.getElementById("status").innerText = "❌ Hata: " + e.message;
                     }
                 }
             }, 500);
@@ -52,12 +53,19 @@
         connectedCallback() {
             this.shadowRoot.getElementById("btn-run").onclick = async () => {
                 const code = this.shadowRoot.getElementById("code").value;
+                const outputDiv = this.shadowRoot.getElementById("output");
                 try {
-                    // runPythonAsync öncesi bir temizlik yapalım
-                    const res = await this.pyodide.runPythonAsync(code);
-                    this.shadowRoot.getElementById("output").innerText = res;
+                    // Önceki çıktıları temizle
+                    await this.pyodide.runPythonAsync("sys.stdout = io.StringIO()");
+                    
+                    // Kodu çalıştır
+                    await this.pyodide.runPythonAsync(code);
+                    
+                    // Yakalanan çıktıyı al
+                    const output = this.pyodide.runPython("sys.stdout.getvalue()");
+                    outputDiv.innerText = output || "Kod başarıyla çalıştı (çıktı yok).";
                 } catch (e) {
-                    this.shadowRoot.getElementById("output").innerText = "Hata: " + e.message;
+                    outputDiv.innerText = "Python Hatası: " + e.message;
                 }
             };
         }
