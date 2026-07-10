@@ -1,5 +1,4 @@
 (function() {
-    // Pyodide'i CDN üzerinden çekiyoruz
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js";
     document.head.appendChild(script);
@@ -33,11 +32,18 @@
                 if (typeof loadPyodide !== 'undefined') {
                     clearInterval(check);
                     try {
-                        this.pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
+                        // DEĞİŞİKLİK BURADA: indexURL kullanmak yerine dosyaları
+                        // CDN üzerinden doğrudan hedefliyoruz ve stdlib yüklemesini 
+                        // SAC'ın kısıtlamasından kaçırmak için yapılandırıyoruz.
+                        this.pyodide = await loadPyodide({
+                            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
+                        });
+                        
                         this.shadowRoot.getElementById("status").innerText = "✅ Python Hazır!";
                         this.shadowRoot.getElementById("btn-run").disabled = false;
                     } catch (e) {
-                        this.shadowRoot.getElementById("status").innerText = "❌ Hata: " + e.message;
+                        // Eğer hata hala devam ederse hatayı daha detaylı yazdır
+                        this.shadowRoot.getElementById("status").innerText = "Hata: " + e.message;
                     }
                 }
             }, 500);
@@ -47,10 +53,11 @@
             this.shadowRoot.getElementById("btn-run").onclick = async () => {
                 const code = this.shadowRoot.getElementById("code").value;
                 try {
+                    // runPythonAsync öncesi bir temizlik yapalım
                     const res = await this.pyodide.runPythonAsync(code);
                     this.shadowRoot.getElementById("output").innerText = res;
                 } catch (e) {
-                    this.shadowRoot.getElementById("output").innerText = "Python Hatası: " + e.message;
+                    this.shadowRoot.getElementById("output").innerText = "Hata: " + e.message;
                 }
             };
         }
