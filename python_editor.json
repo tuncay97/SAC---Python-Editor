@@ -1,42 +1,26 @@
 {
   "id": "com.sapanalytics.custom.pythoneditor",
-  "version": "1.0.8",
+  "version": "1.0.0",
   "name": "Python Veri Editörü",
-  "description": "SAC verilerini Python (Pyodide) ile işleyen editör",
+  "description": "Python Editor Widget",
   "newInstancePrefix": "PythonEditor",
-  "vendor": "Tuncay Güngör",
-  "eula": "",
-  "license": "",
+  "vendor": "TuncayGungor",
   "webcomponents": [
     {
       "kind": "main",
       "tag": "sac-python-editor",
-      "url": "https://raw.githack.com/tuncay97/SAC---Python-Editor/main/python_editor.js",
-      "integrity": "sha384-i3AmxJHqjri6acZf+JolbsYDRruZ9+ZAx1LMPaMaOt4loWOUszWEHLnwrU2XLYkP"
+      "url": "https://tuncay97.github.io/SAC---Python-Editor/python_editor.js",
+      "integrity": "",
+      "ignoreIntegrity": true
     }
   ],
   "properties": {
     "myData": {
       "type": "string",
-      "description": "SAC'den gelen ham tablo verisi"
+      "description": "SAC'den gelen veri",
+      "propertyBinding": "text"
     }
   },
   "events": {},
-  "dataBindings": {
-    "dataModel": {
-      "feeds": [
-        {
-          "id": "dimensions",
-          "description": "Boyutlar (Dimensions)",
-          "type": "dimension"
-        },
-        {
-          "id": "measures",
-          "description": "Ölçüler (Measures)",
-          "type": "mainStructureMember"
-        }
-      ]
-    }
-  },
   "methods": {}
 }
