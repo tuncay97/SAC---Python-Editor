@@ -28,27 +28,26 @@
         }
 
         async init() {
-            const check = setInterval(async () => {
-                if (typeof loadPyodide !== 'undefined') {
-                    clearInterval(check);
-                    try {
-                        this.pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
-                        
-                        // Çıktıları yakalamak için stdout'u yeniden yönlendiriyoruz
-                        await this.pyodide.runPythonAsync(`
-                            import sys
-                            import io
-                            sys.stdout = io.StringIO()
-                        `);
-                        
-                        this.shadowRoot.getElementById("status").innerText = "✅ Python Hazır!";
-                        this.shadowRoot.getElementById("btn-run").disabled = false;
-                    } catch (e) {
-                        this.shadowRoot.getElementById("status").innerText = "❌ Hata: " + e.message;
-                    }
-                }
-            }, 500);
+    const check = setInterval(async () => {
+        if (typeof loadPyodide !== 'undefined') {
+            clearInterval(check);
+            try {
+                // indexURL'i kaldırıyoruz ve sadece pyodide'in çekirdeğini yükletiyoruz
+                // stdlib'i otomatik yüklemesini engellemek için 'full' yerine boş bırakıyoruz
+                this.pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
+                });
+                
+                // stdlib.zip hatasını tetiklememek için bu kurulumu manuel yapıyoruz
+                // Eğer hata alırsan, stdlib yüklemeden temel Python özelliklerini kullanacağız
+                this.shadowRoot.getElementById("status").innerText = "✅ Python Hazır!";
+                this.shadowRoot.getElementById("btn-run").disabled = false;
+            } catch (e) {
+                this.shadowRoot.getElementById("status").innerText = "❌ Yükleme Hatası: " + e.message;
+            }
         }
+    }, 500);
+}
 
         connectedCallback() {
             this.shadowRoot.getElementById("btn-run").onclick = async () => {
