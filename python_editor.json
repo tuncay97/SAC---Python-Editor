@@ -1,26 +1,74 @@
 {
-  "id": "com.sapanalytics.custom.pythoneditor",
-  "version": "1.0.0",
-  "name": "Python Veri Editörü",
-  "description": "Python Editor Widget",
-  "newInstancePrefix": "PythonEditor",
-  "vendor": "TuncayGungor",
-  "webcomponents": [
-    {
-      "kind": "main",
-      "tag": "sac-python-editor",
-      "url": "https://tuncay97.github.io/SAC---Python-Editor/python_editor.js",
-      "integrity": "",
-      "ignoreIntegrity": true
+    "id": "com.example.pythonengine",
+    "name": "Python Engine",
+    "description": "Consultant Python (Pyodide) hesaplama motoru: story verisini pandas DataFrame olarak işler, sonucu planlama modeline yazılabilecek şekilde döner.",
+    "version": "1.0.0",
+    "newInstancePrefix": "PythonEngine",
+    "icon": "icon.svg",
+    "vendor": "",
+    "license": "",
+    "webcomponents": [
+        {
+            "kind": "main",
+            "tag": "com-example-pythonengine",
+            "url": "https://tuncay97.github.io/SAC---Python-Editor/python_editor.js",
+            "integrity": "",
+            "ignoreIntegrity": true
+        }
+    ],
+    "properties": {
+        "pythonCode": {
+            "type": "string",
+            "description": "Widget içindeki editörde yazılan/kaydedilen Python kodu (story ile birlikte persist edilir)."
+        },
+        "pyodideVersion": {
+            "type": "string",
+            "description": "Kullanılacak pinlenmiş Pyodide sürümü (cdnjs core + jsDelivr full paket kaynağı için)."
+        }
+    },
+    "methods": {
+        "run": {
+            "description": "Yapılandırılmış Python kodunu, verilen result-set JSON string'i üzerinde asenkron olarak çalıştırır. Sonuç senkron dönmez; onRunComplete / onRunError event'lerini dinleyin.",
+            "parameters": [
+                {
+                    "name": "resultSetJson",
+                    "type": "string",
+                    "description": "JSON.stringify(Table.getDataSource().getResultSet()) çıktısı."
+                }
+            ]
+        },
+        "getLastResult": {
+            "description": "Son başarılı Python çalıştırmasının sonucunu JSON string olarak döner (liste-of-dict).",
+            "returnType": "string"
+        },
+        "getLastError": {
+            "description": "Son hatanın mesajını döner; hata yoksa boş string.",
+            "returnType": "string"
+        },
+        "getStatus": {
+            "description": "Motorun anlık durumu: idle | loading | running | done | error",
+            "returnType": "string"
+        },
+        "getPythonCode": {
+            "description": "Şu anda yapılandırılmış Python kodunu döner.",
+            "returnType": "string"
+        },
+        "setPythonCode": {
+            "description": "Python kodunu programatik olarak ayarlar (örn. bir şablon menüsünden).",
+            "parameters": [
+                { "name": "code", "type": "string", "description": "Yeni Python kaynak kodu." }
+            ]
+        }
+    },
+    "events": {
+        "onEngineReady": {
+            "description": "Pyodide çekirdeği ve gerekli paketler (pandas, numpy) ilk kez yüklenip hazır olduğunda bir kez tetiklenir."
+        },
+        "onRunComplete": {
+            "description": "Python çalıştırması başarıyla tamamlandığında tetiklenir. Sonuç: getLastResult()."
+        },
+        "onRunError": {
+            "description": "Python çalıştırması hata verdiğinde tetiklenir. Hata mesajı: getLastError()."
+        }
     }
-  ],
-  "properties": {
-    "myData": {
-      "type": "string",
-      "description": "SAC'den gelen veri",
-      "propertyBinding": "text"
-    }
-  },
-  "events": {},
-  "methods": {}
 }
